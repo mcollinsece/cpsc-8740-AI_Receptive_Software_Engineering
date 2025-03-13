@@ -1,1 +1,26 @@
+# Ignore the shuyangli94 data folder
+shuyangli94/
+
+# Common Python files to ignore
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.env/
 general/
+
+# Generated visualization files
+*.png
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
