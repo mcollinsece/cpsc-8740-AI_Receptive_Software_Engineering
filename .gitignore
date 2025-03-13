@@ -18,7 +18,6 @@ env/
 general/
 
 # Generated visualization files
-*.png
 
 # IDE specific files
 .vscode/
