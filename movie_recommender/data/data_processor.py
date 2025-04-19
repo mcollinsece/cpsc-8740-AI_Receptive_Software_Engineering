@@ -16,6 +16,10 @@ class DataProcessor:
         self.ratings = pd.read_csv(ratings_path)
         self.movie_features = None
         self.user_movie_matrix = None
+        self.movie_similarity = None
+        
+        # Initialize similarity matrix
+        self.preprocess_movies()
         
     def preprocess_movies(self):
         """Preprocess the movies data and create TF-IDF features."""
