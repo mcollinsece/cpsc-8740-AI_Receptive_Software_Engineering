@@ -62,6 +62,13 @@ def recommend():
         if user_id is None or movie_ids is None:
             return jsonify({'error': 'Missing required parameters: user_id or movie_ids'}), 400
 
+        # Check if user exists in training data
+        if user_id >= model.user_embedding.num_embeddings:
+            return jsonify({
+                'error': 'New user detected. Please rate some movies first.',
+                'suggestion': 'Rate these popular movies to get started: ...'
+            }), 400
+
         # Convert movie IDs to strings for dictionary lookup
         movie_ids = [str(mid) for mid in movie_ids]
         
