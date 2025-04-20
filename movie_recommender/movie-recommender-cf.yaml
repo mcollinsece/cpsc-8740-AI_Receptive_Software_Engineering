@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Movie Recommender Lambda Function'
+
+Parameters:
+  ECRImageUri:
+    Type: String
+    Description: 'URI of the ECR container image'
+    Default: '739275463201.dkr.ecr.us-east-1.amazonaws.com/movie-recommender-lambda:latest'
+  FunctionName:
+    Type: String
+    Default: 'movie-recommender'
+    Description: 'Name of the Lambda function'
+  MemorySize:
+    Type: Number
+    Default: 3008
+    Description: 'Memory allocated to the Lambda function (max 3008MB)'
+  Timeout:
+    Type: Number
+    Default: 60
+    Description: 'Timeout for the Lambda function'
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LambdaECRAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*'
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${FunctionName}:*'
+
+  MovieRecommenderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ECRImageUri
+      Role: !GetAtt LambdaExecutionRole.Arn
+      MemorySize: !Ref MemorySize
+      Timeout: !Ref Timeout
+      Environment:
+        Variables:
+          NLTK_DATA: /tmp
+      EphemeralStorage:
+        Size: 512
+      ImageConfig:
+        Command:
+          - lambda_function.lambda_handler
+
+  LambdaFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt MovieRecommenderFunction.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - POST
+        AllowHeaders:
+          - '*'
+        ExposeHeaders:
+          - '*'
+        MaxAge: 3600
+
+Outputs:
+  FunctionName:
+    Description: 'Name of the Lambda function'
+    Value: !Ref FunctionName
+  FunctionArn:
+    Description: 'ARN of the Lambda function'
+    Value: !GetAtt MovieRecommenderFunction.Arn
+  FunctionUrl:
+    Description: 'URL of the Lambda function'
+    Value: !GetAtt LambdaFunctionUrl.FunctionUrl
+  RoleArn:
+    Description: 'ARN of the IAM role'
+    Value: !GetAtt LambdaExecutionRole.Arn 
