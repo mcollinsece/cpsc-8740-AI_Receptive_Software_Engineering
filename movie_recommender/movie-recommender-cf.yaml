@@ -1,26 +1,112 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template for Movie Recommender Lambda Function'
+Description: 'CloudFormation template for Movie Recommender ECS Service'
 
 Parameters:
   ECRImageUri:
     Type: String
     Description: 'URI of the ECR container image'
     Default: '739275463201.dkr.ecr.us-east-1.amazonaws.com/movie-recommender-lambda:latest'
-  FunctionName:
+  ServiceName:
     Type: String
     Default: 'movie-recommender'
-    Description: 'Name of the Lambda function'
-  MemorySize:
+    Description: 'Name of the ECS service'
+  DesiredCount:
     Type: Number
-    Default: 3008
-    Description: 'Memory allocated to the Lambda function (max 3008MB)'
-  Timeout:
+    Default: 1
+    Description: 'Number of tasks to run'
+  ContainerPort:
     Type: Number
-    Default: 60
-    Description: 'Timeout for the Lambda function'
+    Default: 5000
+    Description: 'Port the container listens on'
+  ContainerMemory:
+    Type: Number
+    Default: 4096
+    Description: 'Memory allocated to the container (in MiB)'
+  ContainerCPU:
+    Type: Number
+    Default: 2048
+    Description: 'CPU units allocated to the container (1024 units = 1 vCPU)'
 
 Resources:
-  LambdaExecutionRole:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-subnet-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-subnet-2
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-igw
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+
+  TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -28,77 +114,169 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: lambda.amazonaws.com
+              Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
-        - PolicyName: LambdaECRAccess
+        - PolicyName: ECRPermissions
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                  - ecr:BatchCheckLayerAvailability
-                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*'
-        - PolicyName: LambdaLogging
+                  - ecr:*
+                Resource: '*'
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${ServiceName}
+      RetentionInDays: 30
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSLogging
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${FunctionName}:*'
+                  - logs:*
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/${ServiceName}:*'
 
-  MovieRecommenderFunction:
-    Type: AWS::Lambda::Function
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
     Properties:
-      FunctionName: !Ref FunctionName
-      PackageType: Image
-      Code:
-        ImageUri: !Ref ECRImageUri
-      Role: !GetAtt LambdaExecutionRole.Arn
-      MemorySize: !Ref MemorySize
-      Timeout: !Ref Timeout
-      Environment:
-        Variables:
-          NLTK_DATA: /tmp
-      EphemeralStorage:
-        Size: 512
-      ImageConfig:
-        Command:
-          - lambda_function.lambda_handler
+      Family: !Ref ServiceName
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref ContainerCPU
+      Memory: !Ref ContainerMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref ServiceName
+          Image: !Ref ECRImageUri
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub /ecs/${ServiceName}
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+              awslogs-create-group: 'true'
+          Environment:
+            - Name: FLASK_APP
+              Value: recommender_service.py
+            - Name: FLASK_ENV
+              Value: production
 
-  LambdaFunctionUrl:
-    Type: AWS::Lambda::Url
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      TargetFunctionArn: !GetAtt MovieRecommenderFunction.Arn
-      AuthType: NONE
-      Cors:
-        AllowOrigins:
-          - '*'
-        AllowMethods:
-          - POST
-        AllowHeaders:
-          - '*'
-        ExposeHeaders:
-          - '*'
-        MaxAge: 3600
+      GroupDescription: !Sub Security group for ${ServiceName}
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerPort
+          ToPort: !Ref ContainerPort
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${AWS::StackName}-alb
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      Name: !Sub ${AWS::StackName}-tg
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC
+      HealthCheckPath: /recommend
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: !Ref ContainerPort
+      Matcher:
+        HttpCode: '415'
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: TargetGroup
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      ServiceName: !Ref ServiceName
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref SecurityGroup
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroup
+          ContainerName: !Ref ServiceName
+          ContainerPort: !Ref ContainerPort
 
 Outputs:
-  FunctionName:
-    Description: 'Name of the Lambda function'
-    Value: !Ref FunctionName
-  FunctionArn:
-    Description: 'ARN of the Lambda function'
-    Value: !GetAtt MovieRecommenderFunction.Arn
-  FunctionUrl:
-    Description: 'URL of the Lambda function'
-    Value: !GetAtt LambdaFunctionUrl.FunctionUrl
-  RoleArn:
-    Description: 'ARN of the IAM role'
-    Value: !GetAtt LambdaExecutionRole.Arn 
+  ServiceName:
+    Description: 'Name of the ECS service'
+    Value: !Ref ServiceName
+  LoadBalancerDNS:
+    Description: 'DNS name of the load balancer'
+    Value: !GetAtt LoadBalancer.DNSName
+  ClusterName:
+    Description: 'Name of the ECS cluster'
+    Value: !Ref ECSCluster
+  TaskDefinition:
+    Description: 'ARN of the task definition'
+    Value: !Ref TaskDefinition 
