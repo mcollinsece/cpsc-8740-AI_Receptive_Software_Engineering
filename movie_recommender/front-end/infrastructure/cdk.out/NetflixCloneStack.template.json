@@ -94,10 +94,336 @@
     "aws:cdk:path": "NetflixCloneStack/NetflixCloneUserPoolClient/Resource"
    }
   },
+  "NetflixCloneAPI": {
+   "Type": "AWS::AppSync::GraphQLApi",
+   "Properties": {
+    "AuthenticationType": "AMAZON_COGNITO_USER_POOLS",
+    "Name": "netflix-clone-api",
+    "UserPoolConfig": {
+     "AwsRegion": "us-east-1",
+     "DefaultAction": "ALLOW",
+     "UserPoolId": {
+      "Ref": "NetflixCloneUserPool7F423B32"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/NetflixCloneAPI"
+   }
+  },
+  "NetflixCloneSchema": {
+   "Type": "AWS::AppSync::GraphQLSchema",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "Definition": "\n        type Movie {\n          movieId: Int!\n          title: String!\n          genres: String!\n        }\n\n        type Rating {\n          userId: String!\n          movieId: Int!\n          rating: Float!\n          timestamp: Int!\n        }\n\n        type Query {\n          listMovies: [Movie!]!\n          listRatings: [Rating!]!\n          listMovieLinks: [Movie!]!\n        }\n\n        input CreateRatingInput {\n          userId: String!\n          movieId: Int!\n          rating: Float!\n          timestamp: Int!\n        }\n\n        type Mutation {\n          createRating(input: CreateRatingInput!): Rating\n        }\n      "
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/NetflixCloneSchema"
+   }
+  },
+  "MoviesDSRole1634EBBA": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "appsync.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": "dynamodb:Scan",
+         "Effect": "Allow",
+         "Resource": "arn:aws:dynamodb:us-east-1:739275463201:table/movie-recommender-movies"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "DynamoDBAccess"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/MoviesDSRole/Resource"
+   }
+  },
+  "MoviesDataSource": {
+   "Type": "AWS::AppSync::DataSource",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DynamoDBConfig": {
+     "AwsRegion": "us-east-1",
+     "TableName": "movie-recommender-movies"
+    },
+    "Name": "MoviesTable",
+    "ServiceRoleArn": {
+     "Fn::GetAtt": [
+      "MoviesDSRole1634EBBA",
+      "Arn"
+     ]
+    },
+    "Type": "AMAZON_DYNAMODB"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/MoviesDataSource"
+   }
+  },
+  "MovieLinksDSRoleD9A53130": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "appsync.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": "dynamodb:Scan",
+         "Effect": "Allow",
+         "Resource": "arn:aws:dynamodb:us-east-1:739275463201:table/movie-recommender-links"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "DynamoDBAccess"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/MovieLinksDSRole/Resource"
+   }
+  },
+  "MovieLinksDataSource": {
+   "Type": "AWS::AppSync::DataSource",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DynamoDBConfig": {
+     "AwsRegion": "us-east-1",
+     "TableName": "movie-recommender-links"
+    },
+    "Name": "MovieLinksTable",
+    "ServiceRoleArn": {
+     "Fn::GetAtt": [
+      "MovieLinksDSRoleD9A53130",
+      "Arn"
+     ]
+    },
+    "Type": "AMAZON_DYNAMODB"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/MovieLinksDataSource"
+   }
+  },
+  "RatingsDSRole84B21B0C": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "appsync.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "dynamodb:PutItem",
+          "dynamodb:Scan"
+         ],
+         "Effect": "Allow",
+         "Resource": "arn:aws:dynamodb:us-east-1:739275463201:table/movie-recommender-ratings"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "DynamoDBAccess"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/RatingsDSRole/Resource"
+   }
+  },
+  "RatingsDataSource": {
+   "Type": "AWS::AppSync::DataSource",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DynamoDBConfig": {
+     "AwsRegion": "us-east-1",
+     "TableName": "movie-recommender-ratings"
+    },
+    "Name": "RatingsTable",
+    "ServiceRoleArn": {
+     "Fn::GetAtt": [
+      "RatingsDSRole84B21B0C",
+      "Arn"
+     ]
+    },
+    "Type": "AMAZON_DYNAMODB"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/RatingsDataSource"
+   }
+  },
+  "ListMoviesResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DataSourceName": {
+     "Fn::GetAtt": [
+      "MoviesDataSource",
+      "Name"
+     ]
+    },
+    "FieldName": "listMovies",
+    "RequestMappingTemplate": "{\n        \"version\": \"2018-05-29\",\n        \"operation\": \"Scan\"\n      }",
+    "ResponseMappingTemplate": "$util.toJson($ctx.result.items)",
+    "TypeName": "Query"
+   },
+   "DependsOn": [
+    "MoviesDataSource"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/ListMoviesResolver"
+   }
+  },
+  "ListMovieLinksResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DataSourceName": {
+     "Fn::GetAtt": [
+      "MovieLinksDataSource",
+      "Name"
+     ]
+    },
+    "FieldName": "listMovieLinks",
+    "RequestMappingTemplate": "{\n        \"version\": \"2018-05-29\",\n        \"operation\": \"Scan\"\n      }",
+    "ResponseMappingTemplate": "$util.toJson($ctx.result.items)",
+    "TypeName": "Query"
+   },
+   "DependsOn": [
+    "MovieLinksDataSource"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/ListMovieLinksResolver"
+   }
+  },
+  "ListRatingsResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DataSourceName": {
+     "Fn::GetAtt": [
+      "RatingsDataSource",
+      "Name"
+     ]
+    },
+    "FieldName": "listRatings",
+    "RequestMappingTemplate": "{\n        \"version\": \"2018-05-29\",\n        \"operation\": \"Scan\"\n      }",
+    "ResponseMappingTemplate": "$util.toJson($ctx.result.items)",
+    "TypeName": "Query"
+   },
+   "DependsOn": [
+    "RatingsDataSource"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/ListRatingsResolver"
+   }
+  },
+  "CreateRatingResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Fn::GetAtt": [
+      "NetflixCloneAPI",
+      "ApiId"
+     ]
+    },
+    "DataSourceName": {
+     "Fn::GetAtt": [
+      "RatingsDataSource",
+      "Name"
+     ]
+    },
+    "FieldName": "createRating",
+    "RequestMappingTemplate": "{\n        \"version\": \"2018-05-29\",\n        \"operation\": \"PutItem\",\n        \"key\": {\n          \"userId\": $util.dynamodb.toDynamoDBJson($ctx.args.input.userId),\n          \"movieId\": $util.dynamodb.toDynamoDBJson($ctx.args.input.movieId)\n        },\n        \"attributeValues\": $util.dynamodb.toMapValuesJson($ctx.args.input)\n      }",
+    "ResponseMappingTemplate": "$util.toJson($ctx.result)",
+    "TypeName": "Mutation"
+   },
+   "DependsOn": [
+    "RatingsDataSource"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/CreateRatingResolver"
+   }
+  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02KwQ6CMBBEv4V7WVt+Ae8ajGdSSzULZdd0WzkQ/t0oYjjNmzdTgdEGdGEnKV03lAFvMF+SdYOyk7SOH4SJYb6Kj2fmoOo7/XmDI48WaT/9zFbrgJ7S/rCa5aNOOT3zd2y8cI7OL4q489DL4VVpMBp00QtiGTMlHD00a74B6kxvKLwAAAA="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02LQU7DMBBFz9K9M6QRF4BUYoNUSGCNJs6UTmt7LNtpVVm+O4pCoKv57/0/DWybR6g3eI2VHs+V4QFyn1CfFV7jV9by7TgJ5M9I4U3EqPbg/vIadmKR3X31a1ZsDZNL94PFFDXeHFoZB/jAwdAzRlLofbw5Dbk9uJeA/vj++uRZ/VOvj2RxFjtM2MsUNM3UURRzoVAUo4XciVm0GCpFze263E/JT2n9mW1RTkaCU3y4NDVsa6g3p8hchckltgTdcn8AB6mh+TABAAA="
    },
    "Metadata": {
     "aws:cdk:path": "NetflixCloneStack/CDKMetadata/Default"
@@ -118,6 +444,22 @@
   "CognitoDomain": {
    "Value": {
     "Ref": "NetflixCloneUserPoolNetflixCloneDomain57BF5696"
+   }
+  },
+  "GraphQLApiEndpoint": {
+   "Value": {
+    "Fn::GetAtt": [
+     "NetflixCloneAPI",
+     "GraphQLUrl"
+    ]
+   }
+  },
+  "GraphQLApiId": {
+   "Value": {
+    "Fn::GetAtt": [
+     "NetflixCloneAPI",
+     "ApiId"
+    ]
    }
   }
  },

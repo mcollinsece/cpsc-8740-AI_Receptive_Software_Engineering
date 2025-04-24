@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import loginBg from '../assets/login_bg.png';
 import yamrLogo from '../assets/yamr.png';
-import { signIn, signUp } from 'aws-amplify/auth';
 
 const LoginContainer = styled.div`
   display: flex;
@@ -13,6 +13,20 @@ const LoginContainer = styled.div`
   color: white;
   position: relative;
   z-index: 2;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url(${loginBg});
+    background-size: cover;
+    background-position: center;
+    opacity: 0.5;
+    z-index: -1;
+  }
 `;
 
 const LoginForm = styled.form`
@@ -20,14 +34,6 @@ const LoginForm = styled.form`
   padding: 60px 68px;
   border-radius: 4px;
   min-width: 450px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
-const Logo = styled.img`
-  width: 180px;
-  margin-bottom: 20px;
 `;
 
 const Title = styled.h1`
@@ -69,74 +75,56 @@ const Button = styled.button`
   }
 `;
 
-const SignUpSection = styled.div`
-  margin-top: 16px;
-  color: #737373;
-  font-size: 16px;
-`;
-
-const SignUpLink = styled.a`
-  color: white;
-  text-decoration: none;
-  margin-left: 5px;
-  
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 const ErrorMessage = styled.div`
   color: #e50914;
   font-size: 14px;
   margin-bottom: 16px;
 `;
 
+const Logo = styled.img`
+  width: 180px;
+  margin-bottom: 20px;
+`;
+
+const SignUpSection = styled.div`
+  margin-top: 16px;
+  color: #737373;
+  font-size: 16px;
+  text-align: center;
+`;
+
+const SignUpLink = styled.a`
+  color: white;
+  text-decoration: none;
+  margin-left: 5px;
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     try {
-      if (isSignUp) {
-        // Sign up logic with auto sign in
-        await signUp({
-          username: email,
-          password,
-          options: {
-            userAttributes: {
-              email,
-            },
-            autoSignIn: {
-              enabled: true
-            }
-          },
-        });
-        // Auto sign in after successful signup
-        await signIn({
-          username: email,
-          password,
-        });
-        navigate('/welcome');
-      } else {
-        // Sign in logic
-        await signIn({
-          username: email,
-          password,
-        });
-        navigate('/welcome');
+      if (!email || !password) {
+        setError('Please fill in all fields');
+        return;
       }
-    } catch (error: any) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+
+      // For demo purposes, just navigate to welcome page
+      navigate('/welcome');
+    } catch (error) {
+      setError('Something went wrong. Please try again.');
     }
   };
 
@@ -153,7 +141,7 @@ const Login: React.FC = () => {
         {error && <ErrorMessage>{error}</ErrorMessage>}
         <Input
           type="email"
-          placeholder="Email or phone number"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -164,22 +152,23 @@ const Login: React.FC = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={8}
         />
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+        <Button type="submit">
+          {isSignUp ? 'Sign Up' : 'Sign In'}
         </Button>
         <SignUpSection>
           {isSignUp ? (
             <>
               Already have an account?{' '}
-              <SignUpLink href="#" onClick={toggleSignUp}>
+              <SignUpLink onClick={toggleSignUp}>
                 Sign in now
               </SignUpLink>
             </>
           ) : (
             <>
               New to YAMR?{' '}
-              <SignUpLink href="#" onClick={toggleSignUp}>
+              <SignUpLink onClick={toggleSignUp}>
                 Sign up now
               </SignUpLink>
             </>

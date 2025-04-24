@@ -1,0 +1,35 @@
+type Movie {
+  movieId: Int!
+  title: String!
+  genres: String!
+}
+
+type MovieLink {
+  movieId: Int!
+  imdbId: Float!
+  tmdbId: Float!
+}
+
+type Rating {
+  userId: Int!
+  movieId: Int!
+  rating: Float!
+  timestamp: Int!
+}
+
+type Query {
+  listMovies: [Movie!]!
+  listMovieLinks: [MovieLink!]!
+  listRatings: [Rating!]!
+}
+
+input CreateRatingInput {
+  userId: Int!
+  movieId: Int!
+  rating: Float!
+  timestamp: Int!
+}
+
+type Mutation {
+  createRating(input: CreateRatingInput!): Rating
+} 

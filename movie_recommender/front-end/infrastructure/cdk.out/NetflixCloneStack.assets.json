@@ -1,7 +1,7 @@
 {
-  "version": "34.0.0",
+  "version": "36.0.0",
   "files": {
-    "6acad381a26ea86020cb16f9a4c0585590b5870b1af2134041a3f4ccae112a98": {
+    "c572f215cf06a2a94d93b6c24614460b86c6df452e7e9e36692f3e5f70670d5c": {
       "source": {
         "path": "NetflixCloneStack.template.json",
         "packaging": "file"
@@ -9,7 +9,7 @@
       "destinations": {
         "739275463201-us-east-1": {
           "bucketName": "cdk-hnb659fds-assets-739275463201-us-east-1",
-          "objectKey": "6acad381a26ea86020cb16f9a4c0585590b5870b1af2134041a3f4ccae112a98.json",
+          "objectKey": "c572f215cf06a2a94d93b6c24614460b86c6df452e7e9e36692f3e5f70670d5c.json",
           "region": "us-east-1",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-file-publishing-role-739275463201-us-east-1"
         }

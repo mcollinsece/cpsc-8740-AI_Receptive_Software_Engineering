@@ -153,6 +153,24 @@ Resources:
                 Action:
                   - logs:*
                 Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/${ServiceName}:*'
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchGetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !GetAtt MoviesTable.Arn
+                  - !GetAtt TagsTable.Arn
+                  - !GetAtt LinksTable.Arn
+                  - !GetAtt RatingsTable.Arn
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -267,6 +285,140 @@ Resources:
           ContainerName: !Ref ServiceName
           ContainerPort: !Ref ContainerPort
 
+  MoviesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ServiceName}-movies
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: movieId
+          AttributeType: N
+        - AttributeName: title
+          AttributeType: S
+      KeySchema:
+        - AttributeName: movieId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: TitleIndex
+          KeySchema:
+            - AttributeName: title
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-movies
+
+  LinksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ServiceName}-links
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: movieId
+          AttributeType: N
+        - AttributeName: imdbId
+          AttributeType: S
+        - AttributeName: tmdbId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: movieId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ImdbIdIndex
+          KeySchema:
+            - AttributeName: imdbId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: TmdbIdIndex
+          KeySchema:
+            - AttributeName: tmdbId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-links
+
+  RatingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ServiceName}-ratings
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: N
+        - AttributeName: movieId
+          AttributeType: N
+        - AttributeName: rating
+          AttributeType: N
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: movieId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: MovieRatingsIndex
+          KeySchema:
+            - AttributeName: movieId
+              KeyType: HASH
+            - AttributeName: rating
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: UserRatingsByTimeIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-ratings
+
+  TagsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ServiceName}-tags
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: movieId
+          AttributeType: N
+        - AttributeName: userId
+          AttributeType: N
+        - AttributeName: tag
+          AttributeType: S
+      KeySchema:
+        - AttributeName: movieId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: TagIndex
+          KeySchema:
+            - AttributeName: tag
+              KeyType: HASH
+            - AttributeName: movieId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-tags
+
 Outputs:
   ServiceName:
     Description: 'Name of the ECS service'
@@ -279,4 +431,16 @@ Outputs:
     Value: !Ref ECSCluster
   TaskDefinition:
     Description: 'ARN of the task definition'
-    Value: !Ref TaskDefinition 
+    Value: !Ref TaskDefinition
+  MoviesTableName:
+    Description: 'Name of the Movies DynamoDB table'
+    Value: !Ref MoviesTable
+  TagsTableName:
+    Description: 'Name of the Tags DynamoDB table'
+    Value: !Ref TagsTable
+  LinksTableName:
+    Description: 'Name of the Links DynamoDB table'
+    Value: !Ref LinksTable
+  RatingsTableName:
+    Description: 'Name of the Ratings DynamoDB table'
+    Value: !Ref RatingsTable 

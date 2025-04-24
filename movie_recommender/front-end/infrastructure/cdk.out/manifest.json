@@ -1,5 +1,5 @@
 {
-  "version": "34.0.0",
+  "version": "36.0.0",
   "artifacts": {
     "NetflixCloneStack.assets": {
       "type": "cdk:asset-manifest",
@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-deploy-role-739275463201-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-cfn-exec-role-739275463201-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-739275463201-us-east-1/6acad381a26ea86020cb16f9a4c0585590b5870b1af2134041a3f4ccae112a98.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-739275463201-us-east-1/c572f215cf06a2a94d93b6c24614460b86c6df452e7e9e36692f3e5f70670d5c.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -52,6 +52,78 @@
             "data": "NetflixCloneUserPoolClient61894405"
           }
         ],
+        "/NetflixCloneStack/NetflixCloneAPI": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NetflixCloneAPI"
+          }
+        ],
+        "/NetflixCloneStack/NetflixCloneSchema": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NetflixCloneSchema"
+          }
+        ],
+        "/NetflixCloneStack/MoviesDSRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MoviesDSRole1634EBBA"
+          }
+        ],
+        "/NetflixCloneStack/MoviesDataSource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MoviesDataSource"
+          }
+        ],
+        "/NetflixCloneStack/MovieLinksDSRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MovieLinksDSRoleD9A53130"
+          }
+        ],
+        "/NetflixCloneStack/MovieLinksDataSource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MovieLinksDataSource"
+          }
+        ],
+        "/NetflixCloneStack/RatingsDSRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RatingsDSRole84B21B0C"
+          }
+        ],
+        "/NetflixCloneStack/RatingsDataSource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RatingsDataSource"
+          }
+        ],
+        "/NetflixCloneStack/ListMoviesResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListMoviesResolver"
+          }
+        ],
+        "/NetflixCloneStack/ListMovieLinksResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListMovieLinksResolver"
+          }
+        ],
+        "/NetflixCloneStack/ListRatingsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListRatingsResolver"
+          }
+        ],
+        "/NetflixCloneStack/CreateRatingResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CreateRatingResolver"
+          }
+        ],
         "/NetflixCloneStack/UserPoolId": [
           {
             "type": "aws:cdk:logicalId",
@@ -68,6 +140,18 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "CognitoDomain"
+          }
+        ],
+        "/NetflixCloneStack/GraphQLApiEndpoint": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GraphQLApiEndpoint"
+          }
+        ],
+        "/NetflixCloneStack/GraphQLApiId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GraphQLApiId"
           }
         ],
         "/NetflixCloneStack/CDKMetadata/Default": [
