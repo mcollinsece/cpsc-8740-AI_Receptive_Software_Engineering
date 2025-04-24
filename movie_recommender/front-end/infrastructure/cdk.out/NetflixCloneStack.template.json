@@ -1,0 +1,158 @@
+{
+ "Resources": {
+  "NetflixCloneUserPool7F423B32": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_email",
+       "Priority": 1
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": false
+    },
+    "AutoVerifiedAttributes": [],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": true,
+      "RequireUppercase": true
+     }
+    },
+    "Schema": [
+     {
+      "Mutable": true,
+      "Name": "email",
+      "Required": true
+     }
+    ],
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UserPoolName": "netflix-clone-user-pool",
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/NetflixCloneUserPool/Resource"
+   }
+  },
+  "NetflixCloneUserPoolNetflixCloneDomain57BF5696": {
+   "Type": "AWS::Cognito::UserPoolDomain",
+   "Properties": {
+    "Domain": "netflix-clone",
+    "UserPoolId": {
+     "Ref": "NetflixCloneUserPool7F423B32"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/NetflixCloneUserPool/NetflixCloneDomain/Resource"
+   }
+  },
+  "NetflixCloneUserPoolClient61894405": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "AllowedOAuthFlows": [
+     "code"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "email",
+     "openid",
+     "profile"
+    ],
+    "CallbackURLs": [
+     "http://localhost:3000/"
+    ],
+    "ExplicitAuthFlows": [
+     "ALLOW_USER_PASSWORD_AUTH",
+     "ALLOW_USER_SRP_AUTH",
+     "ALLOW_REFRESH_TOKEN_AUTH"
+    ],
+    "LogoutURLs": [
+     "http://localhost:3000/login"
+    ],
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ],
+    "UserPoolId": {
+     "Ref": "NetflixCloneUserPool7F423B32"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/NetflixCloneUserPoolClient/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02KwQ6CMBBEv4V7WVt+Ae8ajGdSSzULZdd0WzkQ/t0oYjjNmzdTgdEGdGEnKV03lAFvMF+SdYOyk7SOH4SJYb6Kj2fmoOo7/XmDI48WaT/9zFbrgJ7S/rCa5aNOOT3zd2y8cI7OL4q489DL4VVpMBp00QtiGTMlHD00a74B6kxvKLwAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "NetflixCloneStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "UserPoolId": {
+   "Value": {
+    "Ref": "NetflixCloneUserPool7F423B32"
+   }
+  },
+  "UserPoolClientId": {
+   "Value": {
+    "Ref": "NetflixCloneUserPoolClient61894405"
+   }
+  },
+  "CognitoDomain": {
+   "Value": {
+    "Ref": "NetflixCloneUserPoolNetflixCloneDomain57BF5696"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

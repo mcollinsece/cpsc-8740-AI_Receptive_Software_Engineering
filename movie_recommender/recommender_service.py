@@ -151,6 +151,76 @@ class RecommenderService:
             logger.error(f"Error getting recommendations: {str(e)}", exc_info=True)
             raise
 
+    def get_recommendations_for_new_user(self, user_ratings, top_n=10):
+        """
+        Get recommendations for a new user based on their initial ratings.
+        
+        Args:
+            user_ratings (dict): Dictionary of movie_id: rating pairs
+            top_n (int): Number of recommendations to return
+            
+        Returns:
+            list: List of recommended movies with predicted ratings
+        """
+        try:
+            # Convert movie IDs to model indices
+            valid_ratings = {}
+            for movie_id, rating in user_ratings.items():
+                movie_id = str(movie_id)
+                if movie_id in self.mappings['movie_id_to_idx']:
+                    idx = self.mappings['movie_id_to_idx'][movie_id]
+                    valid_ratings[idx] = float(rating)
+
+            if not valid_ratings:
+                raise ValueError('No valid movie ratings provided')
+
+            # Get item embeddings from the model
+            item_embeddings = self.model.item_embedding.weight.detach()
+            
+            # Calculate average rating for normalization
+            avg_rating = sum(valid_ratings.values()) / len(valid_ratings)
+            
+            # Calculate weighted similarity scores
+            similarity_scores = torch.zeros(item_embeddings.shape[0], device=self.device)
+            
+            for movie_idx, rating in valid_ratings.items():
+                # Get the embedding for the rated movie
+                rated_embedding = item_embeddings[movie_idx]
+                # Calculate cosine similarity with all other movies
+                similarity = torch.nn.functional.cosine_similarity(
+                    item_embeddings, 
+                    rated_embedding.unsqueeze(0), 
+                    dim=1
+                )
+                # Weight the similarity by the user's rating (normalized)
+                weight = (rating - avg_rating) / 5.0  # Normalize to [-1, 1]
+                similarity_scores += similarity * weight
+
+            # Get top N recommendations
+            top_indices = similarity_scores.argsort(descending=True)[:top_n]
+            
+            # Format recommendations
+            recommendations = []
+            for idx in top_indices:
+                movie_idx = idx.item()
+                movie_id = self.mappings['idx_to_movie_id'][str(movie_idx)]
+                # Skip movies the user has already rated
+                if movie_idx in valid_ratings:
+                    continue
+                title = self.mappings['moviesid_to_title'][str(movie_id)]
+                score = float(similarity_scores[idx].item())
+                recommendations.append({
+                    'movie_id': movie_id,
+                    'title': title,
+                    'predicted_rating': score
+                })
+
+            return recommendations
+
+        except Exception as e:
+            logger.error(f"Error getting recommendations for new user: {str(e)}", exc_info=True)
+            raise
+
 @app.route('/recommend', methods=['POST'])
 def recommend():
     """
@@ -172,6 +242,7 @@ def recommend():
         user_id = data.get('user_id')
         movie_ids = data.get('movie_ids')  # Optional
         top_n = data.get('top_n', 10)  # Default to 10 if not specified
+        user_ratings = data.get('user_ratings')  # New parameter for initial ratings
 
         # Validate required parameters
         if not user_id:
@@ -181,8 +252,23 @@ def recommend():
         if not hasattr(app, 'recommender'):
             app.recommender = RecommenderService()
 
-        # Get recommendations
-        recommendations = app.recommender.get_recommendations(user_id, movie_ids, top_n)
+        # Check if this is a new user
+        if user_id >= app.recommender.model.user_embedding.num_embeddings:
+            if not user_ratings:
+                return jsonify({
+                    'error': 'New user detected. Please provide initial ratings using the user_ratings parameter.',
+                    'example': {
+                        'user_ratings': {
+                            '1': 5.0,  # movie_id: rating
+                            '2': 4.0,
+                            '3': 3.0
+                        }
+                    }
+                }), 400
+            
+            recommendations = app.recommender.get_recommendations_for_new_user(user_ratings, top_n)
+        else:
+            recommendations = app.recommender.get_recommendations(user_id, movie_ids, top_n)
 
         # Return response
         return jsonify({

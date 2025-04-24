@@ -1,0 +1,101 @@
+{
+  "version": "34.0.0",
+  "artifacts": {
+    "NetflixCloneStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "NetflixCloneStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "NetflixCloneStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://739275463201/us-east-1",
+      "properties": {
+        "templateFile": "NetflixCloneStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-deploy-role-739275463201-us-east-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-cfn-exec-role-739275463201-us-east-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-739275463201-us-east-1/6acad381a26ea86020cb16f9a4c0585590b5870b1af2134041a3f4ccae112a98.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "NetflixCloneStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::739275463201:role/cdk-hnb659fds-lookup-role-739275463201-us-east-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "NetflixCloneStack.assets"
+      ],
+      "metadata": {
+        "/NetflixCloneStack/NetflixCloneUserPool/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NetflixCloneUserPool7F423B32"
+          }
+        ],
+        "/NetflixCloneStack/NetflixCloneUserPool/NetflixCloneDomain/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NetflixCloneUserPoolNetflixCloneDomain57BF5696"
+          }
+        ],
+        "/NetflixCloneStack/NetflixCloneUserPoolClient/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NetflixCloneUserPoolClient61894405"
+          }
+        ],
+        "/NetflixCloneStack/UserPoolId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPoolId"
+          }
+        ],
+        "/NetflixCloneStack/UserPoolClientId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPoolClientId"
+          }
+        ],
+        "/NetflixCloneStack/CognitoDomain": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CognitoDomain"
+          }
+        ],
+        "/NetflixCloneStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/NetflixCloneStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/NetflixCloneStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "NetflixCloneStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  }
+}
