@@ -1,0 +1,23 @@
+{
+  "yamr": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-yamr-yamr-493da-authRole",
+      "UnauthRoleArn": "arn:aws:iam::739275463201:role/amplify-yamr-yamr-493da-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::739275463201:role/amplify-yamr-yamr-493da-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-yamr-yamr-493da-deployment",
+      "UnauthRoleName": "amplify-yamr-yamr-493da-unauthRole",
+      "StackName": "amplify-yamr-yamr-493da",
+      "StackId": "arn:aws:cloudformation:us-east-1:739275463201:stack/amplify-yamr-yamr-493da/8f259650-2179-11f0-9b8f-12af13b20237",
+      "AmplifyAppId": "d921qebgtl6n1"
+    },
+    "categories": {
+      "hosting": {
+        "amplifyhosting": {
+          "appId": "d921qebgtl6n1",
+          "type": "manual"
+        }
+      }
+    }
+  }
+}
