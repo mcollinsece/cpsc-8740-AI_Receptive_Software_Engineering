@@ -19,10 +19,6 @@ The movie recommender system is located in the `movie_recommender/` directory. I
 - Machine Learning: Collaborative Filtering, Neural Networks
 - Deployment: Docker, AWS
 
-### Live Demo
-The application is accessible at:
-- Frontend: https://yamr.storybookllm.com
-- API: https://yamrinf.storybookllm.com:5000
 
 ### Project Structure
 ```
