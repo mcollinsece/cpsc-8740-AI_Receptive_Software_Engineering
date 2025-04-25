@@ -18,6 +18,17 @@
             top: 10px;
             right: 10px;
         }
+        .rating-stars {
+            color: gold;
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+        .new-user-message {
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -52,6 +63,10 @@
             </div>
         </div>
 
+        <div id="newUserMessage" class="new-user-message mt-3" style="display: none;">
+            <!-- New user message will be displayed here -->
+        </div>
+
         <div class="row mt-4" id="recommendations">
             <!-- Recommendations will be displayed here -->
         </div>
@@ -65,12 +80,17 @@
     </div>
 
     <script>
+        let currentUserId = null;
+        let isNewUser = false;
+
         document.getElementById('recommendationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const userId = document.getElementById('userId').value;
             const movieId = document.getElementById('movieId').value;
             const method = document.getElementById('method').value;
+            
+            currentUserId = userId;
             
             try {
                 const response = await fetch('/recommend', {
@@ -84,6 +104,17 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    isNewUser = data.is_new_user;
+                    
+                    // Show/hide new user message
+                    const newUserMessage = document.getElementById('newUserMessage');
+                    if (isNewUser) {
+                        newUserMessage.style.display = 'block';
+                        newUserMessage.innerHTML = data.message;
+                    } else {
+                        newUserMessage.style.display = 'none';
+                    }
+                    
                     displayRecommendations(data.recommendations);
                 } else {
                     alert('Error: ' + data.error);
@@ -121,11 +152,53 @@
                             <span class="badge bg-primary score-badge">${movie.score}</span>
                             <h5 class="card-title">${movie.title}</h5>
                             <p class="card-text">${movie.genres}</p>
+                            ${isNewUser ? `
+                                <div class="mt-2">
+                                    <span class="rating-stars" data-rating="1">★</span>
+                                    <span class="rating-stars" data-rating="2">★</span>
+                                    <span class="rating-stars" data-rating="3">★</span>
+                                    <span class="rating-stars" data-rating="4">★</span>
+                                    <span class="rating-stars" data-rating="5">★</span>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
                 container.appendChild(card);
             });
+
+            // Add event listeners for rating stars if this is a new user
+            if (isNewUser) {
+                document.querySelectorAll('.rating-stars').forEach(star => {
+                    star.addEventListener('click', async () => {
+                        const rating = star.getAttribute('data-rating');
+                        const movieTitle = star.closest('.card').querySelector('.card-title').textContent;
+                        
+                        try {
+                            const response = await fetch('/rate', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    user_id: currentUserId,
+                                    movie_id: movie.movieId,
+                                    rating: rating
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            if (data.success) {
+                                alert(`Rating recorded! ${data.message}`);
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        } catch (error) {
+                            alert('Error: ' + error.message);
+                        }
+                    });
+                });
+            }
         }
 
         function displayMetrics(metrics) {

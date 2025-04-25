@@ -4,12 +4,16 @@ import json
 import logging
 import os
 from models.recommender import Recommender
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from flask_cors import CORS
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)
 
 class RecommenderService:
     """
@@ -21,6 +25,7 @@ class RecommenderService:
         self.model = None  # Will hold the trained recommender model
         self.mappings = None  # Will hold the ID mappings
         self.device = None  # Will hold the device (CPU/GPU) for model execution
+        self.new_user_ratings = {}  # Store ratings for new users
         self._load_model()  # Load the model and mappings
 
     def _load_model(self):
@@ -79,9 +84,14 @@ class RecommenderService:
             ValueError: If user is not found or no valid movies are provided
         """
         try:
-            # Check if user exists in training data
+            # Check if user is new
             if user_id >= self.model.user_embedding.num_embeddings:
-                raise ValueError('New user detected. Please rate some movies first.')
+                if user_id not in self.new_user_ratings:
+                    # For completely new users, get initial content-based recommendations
+                    return self.get_initial_recommendations(movie_ids, top_n)
+                else:
+                    # For users who have rated some movies, use hybrid approach
+                    return self.get_hybrid_recommendations(user_id, movie_ids, top_n)
 
             if movie_ids is None:
                 # Case 1: Get recommendations from all movies
@@ -151,75 +161,98 @@ class RecommenderService:
             logger.error(f"Error getting recommendations: {str(e)}", exc_info=True)
             raise
 
-    def get_recommendations_for_new_user(self, user_ratings, top_n=10):
-        """
-        Get recommendations for a new user based on their initial ratings.
-        
-        Args:
-            user_ratings (dict): Dictionary of movie_id: rating pairs
-            top_n (int): Number of recommendations to return
-            
-        Returns:
-            list: List of recommended movies with predicted ratings
-        """
-        try:
-            # Convert movie IDs to model indices
-            valid_ratings = {}
-            for movie_id, rating in user_ratings.items():
-                movie_id = str(movie_id)
-                if movie_id in self.mappings['movie_id_to_idx']:
-                    idx = self.mappings['movie_id_to_idx'][movie_id]
-                    valid_ratings[idx] = float(rating)
+    def get_initial_recommendations(self, movie_ids, top_n):
+        """Get initial content-based recommendations for new users."""
+        if not movie_ids:
+            # If no movie_ids provided, return popular movies
+            popular_movies = self.get_popular_movies(top_n)
+            return [{
+                'movie_id': movie_id,
+                'title': self.mappings['moviesid_to_title'][str(movie_id)],
+                'predicted_rating': 4.0,
+                'is_initial': True
+            } for movie_id in popular_movies]
 
-            if not valid_ratings:
-                raise ValueError('No valid movie ratings provided')
-
-            # Get item embeddings from the model
-            item_embeddings = self.model.item_embedding.weight.detach()
-            
-            # Calculate average rating for normalization
-            avg_rating = sum(valid_ratings.values()) / len(valid_ratings)
-            
-            # Calculate weighted similarity scores
-            similarity_scores = torch.zeros(item_embeddings.shape[0], device=self.device)
-            
-            for movie_idx, rating in valid_ratings.items():
-                # Get the embedding for the rated movie
-                rated_embedding = item_embeddings[movie_idx]
-                # Calculate cosine similarity with all other movies
-                similarity = torch.nn.functional.cosine_similarity(
-                    item_embeddings, 
-                    rated_embedding.unsqueeze(0), 
-                    dim=1
-                )
-                # Weight the similarity by the user's rating (normalized)
-                weight = (rating - avg_rating) / 5.0  # Normalize to [-1, 1]
-                similarity_scores += similarity * weight
-
-            # Get top N recommendations
-            top_indices = similarity_scores.argsort(descending=True)[:top_n]
-            
-            # Format recommendations
-            recommendations = []
-            for idx in top_indices:
-                movie_idx = idx.item()
-                movie_id = self.mappings['idx_to_movie_id'][str(movie_idx)]
-                # Skip movies the user has already rated
-                if movie_idx in valid_ratings:
-                    continue
-                title = self.mappings['moviesid_to_title'][str(movie_id)]
-                score = float(similarity_scores[idx].item())
+        # Get content-based recommendations based on provided movie_ids
+        recommendations = []
+        for movie_id in movie_ids[:top_n]:
+            if str(movie_id) in self.mappings['moviesid_to_title']:
                 recommendations.append({
                     'movie_id': movie_id,
-                    'title': title,
-                    'predicted_rating': score
+                    'title': self.mappings['moviesid_to_title'][str(movie_id)],
+                    'predicted_rating': 4.0,
+                    'is_initial': True
                 })
+        return recommendations
 
-            return recommendations
+    def get_hybrid_recommendations(self, user_id, movie_ids, top_n):
+        """Get hybrid recommendations for new users who have rated some movies."""
+        # Get user's ratings
+        user_ratings = self.new_user_ratings[user_id]
+        
+        # Convert ratings to a format suitable for similarity calculation
+        rated_movie_indices = []
+        ratings = []
+        for rating in user_ratings:
+            movie_id = str(rating['movie_id'])
+            if movie_id in self.mappings['movie_id_to_idx']:
+                rated_movie_indices.append(self.mappings['movie_id_to_idx'][movie_id])
+                ratings.append(rating['rating'])
 
-        except Exception as e:
-            logger.error(f"Error getting recommendations for new user: {str(e)}", exc_info=True)
-            raise
+        if not rated_movie_indices:
+            return self.get_initial_recommendations(movie_ids, top_n)
+
+        # Get item embeddings
+        item_embeddings = self.model.item_embedding.weight.detach().cpu().numpy()
+        
+        # Calculate weighted average of rated movie embeddings
+        weighted_embeddings = np.zeros_like(item_embeddings[0])
+        for idx, rating in zip(rated_movie_indices, ratings):
+            weighted_embeddings += item_embeddings[idx] * (rating / 5.0)
+        weighted_embeddings /= len(rated_movie_indices)
+
+        # Calculate similarity with all movies
+        similarities = cosine_similarity([weighted_embeddings], item_embeddings)[0]
+
+        # Get top N recommendations
+        top_indices = np.argsort(similarities)[::-1][:top_n]
+        
+        recommendations = []
+        for idx in top_indices:
+            movie_id = self.mappings['idx_to_movie_id'][str(idx)]
+            # Skip movies the user has already rated
+            if any(r['movie_id'] == int(movie_id) for r in user_ratings):
+                continue
+            title = self.mappings['moviesid_to_title'][str(movie_id)]
+            recommendations.append({
+                'movie_id': movie_id,
+                'title': title,
+                'predicted_rating': float(similarities[idx]),
+                'is_hybrid': True
+            })
+
+        return recommendations
+
+    def get_popular_movies(self, top_n):
+        """Get a list of popular movie IDs."""
+        # This is a placeholder - implement your popularity calculation
+        # For now, return the first top_n movies from the mappings
+        return [int(mid) for mid in list(self.mappings['moviesid_to_title'].keys())[:top_n]]
+
+    def add_user_ratings(self, user_id, ratings):
+        """Add multiple ratings for a new user."""
+        if user_id >= self.model.user_embedding.num_embeddings:
+            if user_id not in self.new_user_ratings:
+                self.new_user_ratings[user_id] = []
+            
+            for rating in ratings:
+                self.new_user_ratings[user_id].append({
+                    'movie_id': rating['movie_id'],
+                    'rating': rating['rating']
+                })
+            
+            return True
+        return False
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
@@ -242,7 +275,6 @@ def recommend():
         user_id = data.get('user_id')
         movie_ids = data.get('movie_ids')  # Optional
         top_n = data.get('top_n', 10)  # Default to 10 if not specified
-        user_ratings = data.get('user_ratings')  # New parameter for initial ratings
 
         # Validate required parameters
         if not user_id:
@@ -252,23 +284,7 @@ def recommend():
         if not hasattr(app, 'recommender'):
             app.recommender = RecommenderService()
 
-        # Check if this is a new user
-        if user_id >= app.recommender.model.user_embedding.num_embeddings:
-            if not user_ratings:
-                return jsonify({
-                    'error': 'New user detected. Please provide initial ratings using the user_ratings parameter.',
-                    'example': {
-                        'user_ratings': {
-                            '1': 5.0,  # movie_id: rating
-                            '2': 4.0,
-                            '3': 3.0
-                        }
-                    }
-                }), 400
-            
-            recommendations = app.recommender.get_recommendations_for_new_user(user_ratings, top_n)
-        else:
-            recommendations = app.recommender.get_recommendations(user_id, movie_ids, top_n)
+        recommendations = app.recommender.get_recommendations(user_id, movie_ids, top_n)
 
         # Return response
         return jsonify({
@@ -279,6 +295,76 @@ def recommend():
     except Exception as e:
         # Handle errors
         return jsonify({'error': str(e)}), 500
+
+@app.route('/rate', methods=['POST'])
+def rate_movie():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        movie_id = data.get('movie_id')
+        rating = data.get('rating')
+
+        if not all([user_id, movie_id, rating]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        if not hasattr(app, 'recommender'):
+            app.recommender = RecommenderService()
+
+        success = app.recommender.add_user_ratings(user_id, [{'movie_id': movie_id, 'rating': rating}])
+        
+        if success:
+            ratings_count = len(app.recommender.new_user_ratings[user_id])
+            message = f'Rating recorded. {10 - ratings_count} more ratings needed for personalized recommendations.'
+            if ratings_count >= 10:
+                message = 'User profile updated. Now using hybrid recommendations.'
+            
+            return jsonify({
+                'message': message,
+                'ratings_count': ratings_count
+            })
+        
+        return jsonify({'error': 'User already exists in the system'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rate/batch', methods=['POST'])
+def rate_movies_batch():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        ratings = data.get('ratings')
+
+        if not all([user_id, ratings]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        if len(ratings) != 10:
+            return jsonify({'error': 'Exactly 10 ratings are required for new users'}), 400
+
+        if not hasattr(app, 'recommender'):
+            app.recommender = RecommenderService()
+
+        success = app.recommender.add_user_ratings(user_id, ratings)
+        
+        if success:
+            return jsonify({
+                'message': 'User profile updated with 10 initial ratings. Now using hybrid recommendations.',
+                'ratings_count': 10
+            })
+        
+        return jsonify({'error': 'User already exists in the system'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint that returns 200 if the service is running."""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'movie_recommender',
+        'version': '1.0.0'
+    }), 200
 
 if __name__ == '__main__':
     # Start the Flask server
