@@ -19,7 +19,6 @@ The movie recommender system is located in the `movie_recommender/` directory. I
 - Machine Learning: Collaborative Filtering, Neural Networks
 - Deployment: Docker, AWS
 
-
 ### Project Structure
 ```
 movie_recommender/
@@ -42,28 +41,6 @@ Located in `module4/`, this directory contains Python GUI applications built wit
 - Todo List for task management
 - Tic-tac-toe game with two-player support
 
-## Getting Started
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/cpsc-8740-AI_Receptive_Software_Engineering.git
-cd cpsc-8740-AI_Receptive_Software_Engineering
-```
-
-2. For the movie recommender project:
-```bash
-cd movie_recommender
-pip install -r requirements.txt
-python train.py  # Train the model
-python recommender_service.py  # Start the recommendation service
-```
-
-3. For the frontend:
-```bash
-cd front-end/netflix-clone
-npm install
-npm start
-```
 
 ## Contributing
 
